@@ -2,6 +2,18 @@ use std::fs::File;
 use std::io::Read;
 const MEM_SIZE: usize = 1 << 20;
 const COM_START: usize = 0x100;
+
+//Banderas del registro de estado para poderlas usar de manera mas simple
+const FLAG_CF: u16 = 0b0000_0000_0000_0001;  // Bit 0
+const FLAG_PF: u16 = 0b0000_0000_0000_0100;  // Bit 2
+const FLAG_AF: u16 = 0b0000_0000_0001_0000;  // Bit 4
+const FLAG_ZF: u16 = 0b0000_0000_0100_0000;  // Bit 6
+const FLAG_SF: u16 = 0b0000_0000_1000_0000;  // Bit 7
+const FLAG_TF: u16 = 0b0000_0001_0000_0000;  // Bit 8
+const FLAG_IF: u16 = 0b0000_0010_0000_0000;  // Bit 9
+const FLAG_DF: u16 = 0b0000_0100_0000_0000;  // Bit 10
+const FLAG_OF: u16 = 0b0000_1000_0000_0000;  // Bit 11
+
 pub struct Registers {
     // Registros generales de 16 bits
     pub ax: u16,
@@ -33,12 +45,12 @@ impl Registers{
             dx: 0,
             si: 0,
             di: 0,
-            sp: 0xFFFF, // El puntero de pila por lo general empieza en el tope
+            sp: 0xFFFE, // El puntero de pila por lo general empieza en el tope
             bp: 0,
-            cs: 0x0000,
-            ds: 0x0000,
+            cs: 0x0700,
+            ds: 0x0700,
             ss: 0x0000,
-            es: 0x0000,
+            es: 0x0700,
             ip: 0x0100, // El punto de entrada por defecto para programas
             flags: 0,
         }
@@ -53,13 +65,6 @@ impl Registers{
         let value = register.into();
         (value & 0x00FF) as u8
     }
-}
-
-pub enum Instruction{
-    AAA,
-    AAD,
-    AAM,
-    AAS
 }
 
 
@@ -96,15 +101,13 @@ impl Emulator8086{
         let offset = self.registers.ip as usize;
         let effective_address = base_address + offset;
         self.registers.ip += 1;
-        self.pending_cycles += 4;
         self.memory[effective_address] //Leer 1 byte de memoria del 8086 tarda 4 ciclos de reloj
     }
 
-    pub fn decode_execute(&self, opcode: u8) -> Instruction {
+    pub fn decode_and_execute(&mut self, opcode: u8){
         match opcode {
-            0x37 => Instruction::AAA,
-            OxD5=> Instruction::AAD,
-            0xD4 => Instruction::AAM,
+            0x37 => self.aaa(),
+            0xD5 => self.aad(),
             _ => panic!("Invalid opcode: 0x{:02X}", opcode),
         }
     }
@@ -120,5 +123,27 @@ impl Emulator8086{
         }
 
         println!();
+    }
+
+    //Implementación de las microinstrucciones
+    //AAA ASCII adjust for addition
+
+    fn aaa(&mut self){
+
+    }
+
+
+    //AAD ASCII adjust for division
+    fn aad(&mut self){
+        let ah = (self.registers.ax & 0xFF00) >> 8;
+        let al = self.registers.ax & 0x00FF;
+        let temp = al.wrapping_add(ah*0xA)&0xFF00;
+        self.registers.ax = (self.registers.ax & 0xFF00) | temp;
+        self.registers.ax &= 0x00FF;
+        self.registers.flags &= !(FLAG_PF | FLAG_SF | FLAG_ZF);
+        if temp == 0{
+            self.registers.flags |= FLAG_ZF;
+        }
+        self.pending_cycles += 60;
     }
 }
