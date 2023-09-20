@@ -55,12 +55,21 @@ impl Registers{
     }
 }
 
+pub enum Instruction{
+    AAA,
+    AAD,
+    AAM,
+    AAS
+}
+
 
 pub struct Emulator8086 {
     // Registros
     pub registers: Registers,
     // Memoria
     pub memory: Vec<u8>,
+    //Ciclos de espera pendientes de emular
+    pub pending_cycles: u64,
 }
 
 impl Emulator8086{
@@ -68,6 +77,7 @@ impl Emulator8086{
         Self{
             registers: Registers::initialize(),
             memory: vec![0; MEM_SIZE],
+            pending_cycles: 0,
         }
     }
 
@@ -78,8 +88,25 @@ impl Emulator8086{
         for (i, &byte) in buffer.iter().enumerate() {
             self.memory[COM_START + i] = byte;
         }
-
         Ok(())
+    }
+
+    pub fn fetch(&mut self)->u8{
+        let base_address = (self.registers.cs as usize) << 4;
+        let offset = self.registers.ip as usize;
+        let effective_address = base_address + offset;
+        self.registers.ip += 1;
+        self.pending_cycles += 4;
+        self.memory[effective_address] //Leer 1 byte de memoria del 8086 tarda 4 ciclos de reloj
+    }
+
+    pub fn decode_execute(&self, opcode: u8) -> Instruction {
+        match opcode {
+            0x37 => Instruction::AAA,
+            OxD5=> Instruction::AAD,
+            0xD4 => Instruction::AAM,
+            _ => panic!("Invalid opcode: 0x{:02X}", opcode),
+        }
     }
 
     pub fn imprimir_estado_memoria(&self, inicio: usize, fin: usize) {

@@ -1,0 +1,27 @@
+{
+    // Use IntelliSense para saber los atributos posibles.
+    // Mantenga el puntero para ver las descripciones de los existentes atributos.
+    // Para más información, visite: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug Executable 'emu8086'",
+            "cargo": {
+              "args": [
+                "build",
+                "--bin= emu8086",
+                "--package=emu8086"
+              ],
+              "filter": {
+                "name": "emu8086",
+                "kind": "bin"
+              }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "program": "${workspaceFolder}/target/debug/emu8086"
+          }
+    ]
+}
