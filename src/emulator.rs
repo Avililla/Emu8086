@@ -129,7 +129,20 @@ impl Emulator8086{
     //AAA ASCII adjust for addition
 
     fn aaa(&mut self){
-
+        let mut al = self.registers.get_low_byte(self.registers.ax);
+        let mut ah = self.registers.get_high_byte(self.registers.ax);
+        if(al & 0x0F > 9) || ((self.registers.flags & FLAG_AF) != 0){
+            ah = ah.wrapping_add(1);
+            al = al.wrapping_add(6);
+            self.registers.flags |= FLAG_AF;
+            self.registers.flags |= FLAG_CF;
+        }else{
+            self.registers.flags &= !FLAG_AF;
+            self.registers.flags &= !FLAG_CF;
+        }
+        al &= 0x0F;
+        self.registers.ax = (ah as u16) << 8 | al as u16;
+        self.pending_cycles += 4;
     }
 
 
