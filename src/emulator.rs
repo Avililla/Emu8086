@@ -44,7 +44,7 @@ impl Registers{
             cx: 0,
             dx: 0,
             si: 0,
-            di: 0,
+            di: 0x0000,
             sp: 0xFFFE, // El puntero de pila por lo general empieza en el tope
             bp: 0,
             cs: 0x0700,
@@ -64,6 +64,38 @@ impl Registers{
     pub fn get_low_byte<T: Into<u16>>(&self, register: T)->u8{
         let value = register.into();
         (value & 0x00FF) as u8
+    }
+
+    //Solo se usan para cuando son la base de la instrucción
+
+    //Según el indice en el modo de redireccionamiento devuelve el valor //Correcto
+    pub fn get_register_by_index(&self,index:u8)->u16{
+        match index{
+            0b000 => self.ax,
+            0b001 => self.cx,
+            0b010 => self.dx,
+            0b011 => self.bx,
+            0b100 => self.sp,
+            0b101 => self.bp,
+            0b110 => self.si,
+            0b111 => self.di,
+            _ => panic!("Indice de registro no valido: {}", index),
+        }
+    }
+
+    //Según el indice en el modo de redireccionamiento escribe el valor //Correcto
+    pub fn write_register_by_index(&mut self, index: u8, value: u16){
+        match index{
+            0b000 => self.ax = value,
+            0b001 => self.cx = value,
+            0b010 => self.dx = value,
+            0b011 => self.bx = value,
+            0b100 => self.sp = value,
+            0b101 => self.bp = value,
+            0b110 => self.si = value,
+            0b111 => self.di = value,
+            _ => panic!("Indice de registro no valido: {}", index),
+        }
     }
 }
 
@@ -98,7 +130,21 @@ impl Emulator8086{
 
     //Función que se ejecuta después de cada instrucción para la emulación del retardo
     pub fn run_pending_cycles(&self){
-        
+
+    }
+
+    pub fn get_base_address_from_code(&self,code: u8)->u16{
+        match code{
+            0b000 => self.registers.bx+self.registers.si,
+            0b001 => self.registers.bx+self.registers.di,
+            0b010 => self.registers.bp+self.registers.si,
+            0b011 => self.registers.bp+self.registers.di,
+            0b100 => self.registers.si,
+            0b101 => self.registers.di,
+            0b110 => self.registers.bp,
+            0b111 => self.registers.bx,
+            _ => panic!("Codigo de base no valido: {}", code),
+        }
     }
 
     pub fn fetch(&mut self)->u8{
@@ -107,6 +153,23 @@ impl Emulator8086{
         let effective_address = base_address + offset;
         self.registers.ip += 1;
         self.memory[effective_address] //Leer 1 byte de memoria del 8086 tarda 4 ciclos de reloj
+    }
+
+    //Coger un byte de memoria
+    pub fn get_b_from_memory(&self, base:u16, offset:u16)->u8{
+        let base_address = (base as usize) << 4;
+        let effective_address = base_address + (offset as usize);
+        self.memory[effective_address]
+    }
+
+    //Coger un word de memoria
+    pub fn get_w_from_memory(&self, base:u16, offset:u16)->u16{
+        let base_address = (base as usize) << 4;
+        let effective_address = base_address + (offset as usize);
+        println!("Direccion efectiva: 0x{:04x}", effective_address);
+        let low_byte = self.memory[effective_address];
+        let high_byte = self.memory[effective_address + 1];
+        (high_byte as u16) << 8 | low_byte as u16
     }
 
     pub fn decode_and_execute(&mut self, opcode: u8){
@@ -156,7 +219,19 @@ impl Emulator8086{
         println!("SS: 0x{:04x}", self.registers.ss);
         println!("ES: 0x{:04x}", self.registers.es);
         println!("IP: 0x{:04x}", self.registers.ip);
-        println!("Flags: 0x{:04x}", self.registers.flags);
+        println!("+-----+-----+-----+-----+-----+-----+-----+-----+");
+        println!(
+            "| OF:{} | DF:{} | IF:{} | TF:{} | SF:{} | ZF:{} | AF:{} | PF:{} |",
+            if (self.registers.flags & FLAG_OF) != 0 { "1" } else { "0" },
+            if (self.registers.flags & FLAG_DF) != 0 { "1" } else { "0" },
+            if (self.registers.flags & FLAG_IF) != 0 { "1" } else { "0" },
+            if (self.registers.flags & FLAG_TF) != 0 { "1" } else { "0" },
+            if (self.registers.flags & FLAG_SF) != 0 { "1" } else { "0" },
+            if (self.registers.flags & FLAG_ZF) != 0 { "1" } else { "0" },
+            if (self.registers.flags & FLAG_AF) != 0 { "1" } else { "0" },
+            if (self.registers.flags & FLAG_PF) != 0 { "1" } else { "0" },
+        );
+        println!("+-----+-----+-----+-----+-----+-----+-----+-----+");
     }
 
     //Implementación de las microinstrucciones
@@ -248,7 +323,79 @@ impl Emulator8086{
 
             },
             0x03 =>{
+                // 7   6   5   4   3   2   1   0
+                // +---+---+---+---+---+---+---+---+
+                // | Mod   |   Reg/Opcode  |  R/M   |
+                // +---+---+---+---+---+---+---+---+
+                let mod_rm = self.fetch(); //Leer el byte que nos dice el modo de direccionamiento
+                let mod_field = (mod_rm & 0xC0) >> 6;//Determinan si el operando es un registro o un valor en memoria
+                let reg_field = (mod_rm & 0x38) >> 3;//Determinan el registro de destino
+                let rm_field = mod_rm & 0x07;//Determinan el registro de origen
+                match mod_field{
+                    0x00=>{
+                        //Accedemos a memoria usando un registro como indice
+                        let origin_register_value = self.get_base_address_from_code(rm_field);
+                        let destination_register_value = self.registers.get_register_by_index(reg_field);
+                        let memory_value = self.get_w_from_memory(self.registers.ds, origin_register_value);
+                        let (new_value, carry) = destination_register_value.overflowing_add(memory_value);
+                        let overflow = ((destination_register_value as i16).overflowing_add(memory_value as i16)).1;
+                        self.registers.write_register_by_index(reg_field, new_value);
+                        self.registers.flags &= !(FLAG_CF | FLAG_PF | FLAG_AF | FLAG_ZF | FLAG_SF | FLAG_OF);  // Limpiar flags relevantes
+                        if carry {
+                            self.registers.flags |= FLAG_CF;
+                        }
+                        if new_value % 2 == 0 {
+                            self.registers.flags |= FLAG_PF;
+                        }
+                        if (new_value & 0x0F) + (memory_value & 0x0F) > 0x0F {
+                            self.registers.flags |= FLAG_AF;
+                        }
+                        if new_value == 0 {
+                            self.registers.flags |= FLAG_ZF;
+                        }
+                        if new_value & 0x8000 != 0 {
+                            self.registers.flags |= FLAG_SF;
+                        }
+                        if overflow {
+                            self.registers.flags |= FLAG_OF;
+                        }
+                        self.pending_cycles += 9;
+                    },
+                    0x01=>{
 
+                    },
+                    0x02=>{
+
+                    },
+                    0x03=>{
+                        let origin_register_value = self.registers.get_register_by_index(rm_field);
+                        let destination_register_value = self.registers.get_register_by_index(reg_field);
+                        let (new_value, carry) = destination_register_value.overflowing_add(origin_register_value);
+                        let overflow = ((destination_register_value as i16).overflowing_add(origin_register_value as i16)).1;
+                        self.registers.write_register_by_index(reg_field, new_value);
+                        self.registers.flags &= !(FLAG_CF | FLAG_PF | FLAG_AF | FLAG_ZF | FLAG_SF | FLAG_OF);  // Limpiar flags relevantes
+                        if carry {
+                            self.registers.flags |= FLAG_CF;
+                        }
+                        if new_value % 2 == 0 {
+                            self.registers.flags |= FLAG_PF;
+                        }
+                        if (new_value & 0x0F) + (origin_register_value & 0x0F) > 0x0F {
+                            self.registers.flags |= FLAG_AF;
+                        }
+                        if new_value == 0 {
+                            self.registers.flags |= FLAG_ZF;
+                        }
+                        if new_value & 0x8000 != 0 {
+                            self.registers.flags |= FLAG_SF;
+                        }
+                        if overflow {
+                            self.registers.flags |= FLAG_OF;
+                        }
+                        self.pending_cycles += 3;
+                    },
+                    _ => {}
+                }
             },
             0x04 =>{
                 let inmediate_value = self.fetch();
@@ -279,7 +426,36 @@ impl Emulator8086{
                 self.pending_cycles += 4;
             },
             0x05 =>{
-
+                let inmediate_value_l = self.fetch();
+                let inmediate_value_h = self.fetch();
+                let inmediate_value = (inmediate_value_h as u16) << 8 | inmediate_value_l as u16;
+                let (new_ax, carry) = self.registers.ax.overflowing_add(inmediate_value);
+                let overflow = ((self.registers.ax as i16).overflowing_add(inmediate_value as i16)).1;
+                self.registers.ax = new_ax;
+                self.registers.flags &= !(FLAG_CF | FLAG_PF | FLAG_AF | FLAG_ZF | FLAG_SF | FLAG_OF);  // Limpiar flags relevantes
+                if carry {
+                    self.registers.flags |= FLAG_CF;
+                }
+                if (new_ax & 0xFF).count_ones() % 2 == 0 {
+                    self.registers.flags |= FLAG_PF;
+                }
+                
+                if (new_ax & 0x0F) + (inmediate_value & 0x0F) > 0x0F {
+                    self.registers.flags |= FLAG_AF;
+                }
+        
+                if new_ax == 0 {
+                    self.registers.flags |= FLAG_ZF;
+                }
+        
+                if new_ax & 0x8000 != 0 {
+                    self.registers.flags |= FLAG_SF;
+                }
+        
+                if overflow {
+                    self.registers.flags |= FLAG_OF;
+                }
+                self.pending_cycles += 4;
             },
             _ => {}
         }

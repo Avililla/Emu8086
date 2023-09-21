@@ -2,7 +2,7 @@ EMU8086 GENERATED LISTING. MACHINE CODE <- SOURCE.
  
 noname.com -- emu8086 assembler version: 4.08  
  
-[ 21/09/2023  --  2:22:29 ] 
+[ 21/09/2023  --  4:31:28 ] 
  
 ===================================================================================================
 [LINE]     LOC: MACHINE CODE                          SOURCE
@@ -10,7 +10,7 @@ noname.com -- emu8086 assembler version: 4.08
  
 [   1]        :                                       ORG 100h        ; Origin, estándar para programas .COM
 [   2]        :                                       
-[   3]    0100: 04 03                                 ADD AL,3
+[   3]    0100: 03 1D                                 ADD BX,[DI]
 [   4]        :                                       
 [   5]        :                                       ; Final del programa, regreso al sistema operativo
 [   6]    0102: C3                                    RET
