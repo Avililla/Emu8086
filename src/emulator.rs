@@ -362,10 +362,66 @@ impl Emulator8086{
                         self.pending_cycles += 9;
                     },
                     0x01=>{
-
+                        //Accedemos a memoria usando un registro como indice y un desplazamiento de 8 bits
+                        let origin_register_value = self.get_base_address_from_code(rm_field);
+                        let displacement = self.fetch();
+                        let destination_register_value = self.registers.get_register_by_index(reg_field);
+                        let memory_value = self.get_w_from_memory(self.registers.ds, origin_register_value + displacement as u16);
+                        let (new_value, carry) = destination_register_value.overflowing_add(memory_value);
+                        let overflow = ((destination_register_value as i16).overflowing_add(memory_value as i16)).1;
+                        self.registers.write_register_by_index(reg_field, new_value);
+                        self.registers.flags &= !(FLAG_CF | FLAG_PF | FLAG_AF | FLAG_ZF | FLAG_SF | FLAG_OF);  // Limpiar flags relevantes
+                        if carry {
+                            self.registers.flags |= FLAG_CF;
+                        }
+                        if new_value % 2 == 0 {
+                            self.registers.flags |= FLAG_PF;
+                        }
+                        if (new_value & 0x0F) + (memory_value & 0x0F) > 0x0F {
+                            self.registers.flags |= FLAG_AF;
+                        }
+                        if new_value == 0 {
+                            self.registers.flags |= FLAG_ZF;
+                        }
+                        if new_value & 0x8000 != 0 {
+                            self.registers.flags |= FLAG_SF;
+                        }
+                        if overflow {
+                            self.registers.flags |= FLAG_OF;
+                        }
+                        self.pending_cycles += 9;
                     },
                     0x02=>{
-
+                        //Accedemos a memoria usando un registro como indice y un desplazamiento de 16 bits
+                        let origin_register_value = self.get_base_address_from_code(rm_field);
+                        let displacement_l = self.fetch();
+                        let displacement_h = self.fetch();
+                        let displacement = (displacement_h as u16) << 8 | displacement_l as u16;
+                        let destination_register_value = self.registers.get_register_by_index(reg_field);
+                        let memory_value = self.get_w_from_memory(self.registers.ds, origin_register_value + displacement);
+                        let (new_value, carry) = destination_register_value.overflowing_add(memory_value);
+                        let overflow = ((destination_register_value as i16).overflowing_add(memory_value as i16)).1;
+                        self.registers.write_register_by_index(reg_field, new_value);
+                        self.registers.flags &= !(FLAG_CF | FLAG_PF | FLAG_AF | FLAG_ZF | FLAG_SF | FLAG_OF);  // Limpiar flags relevantes
+                        if carry {
+                            self.registers.flags |= FLAG_CF;
+                        }
+                        if new_value % 2 == 0 {
+                            self.registers.flags |= FLAG_PF;
+                        }
+                        if (new_value & 0x0F) + (memory_value & 0x0F) > 0x0F {
+                            self.registers.flags |= FLAG_AF;
+                        }
+                        if new_value == 0 {
+                            self.registers.flags |= FLAG_ZF;
+                        }
+                        if new_value & 0x8000 != 0 {
+                            self.registers.flags |= FLAG_SF;
+                        }
+                        if overflow {
+                            self.registers.flags |= FLAG_OF;
+                        }
+                        self.pending_cycles += 9;
                     },
                     0x03=>{
                         let origin_register_value = self.registers.get_register_by_index(rm_field);
