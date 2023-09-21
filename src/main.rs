@@ -5,11 +5,12 @@ fn main() {
         println!("Error al cargar el programa: {:?}", e);
         return;
     }
-    //emulator.imprimir_estado_memoria(0x0100, 0x0170);
-    let instruction = emulator.fetch();
-    println!("0x{:02x} ", instruction);
-    emulator.decode_and_execute(instruction);
-    emulator.imprimir_estado_registros();
+    let mut instruction = emulator.fetch(); //Primera instruccion
+    while instruction != 0xc3 {
+        emulator.decode_and_execute(instruction);
+        emulator.imprimir_estado_registros();
+        instruction = emulator.fetch();
+    }
 }
 
 //http://atc2.aut.uah.es/~avicente/asignaturas/ects/pdf/ects_t2.pdf
