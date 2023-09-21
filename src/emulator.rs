@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::Read;
 const MEM_SIZE: usize = 1 << 20;
-const COM_START: usize = 0x100;
+const COM_START: usize = 0x7100;
 
 //Banderas del registro de estado para poderlas usar de manera mas simple
 const FLAG_CF: u16 = 0b0000_0000_0000_0001;  // Bit 0
@@ -96,6 +96,11 @@ impl Emulator8086{
         Ok(())
     }
 
+    //Función que se ejecuta después de cada instrucción para la emulación del retardo
+    pub fn run_pending_cycles(&self){
+        
+    }
+
     pub fn fetch(&mut self)->u8{
         let base_address = (self.registers.cs as usize) << 4;
         let offset = self.registers.ip as usize;
@@ -108,7 +113,18 @@ impl Emulator8086{
         match opcode {
             0x37 => self.aaa(),
             0xD5 => self.aad(),
-            _ => panic!("Invalid opcode: 0x{:02X}", opcode),
+            0xD4 => self.aam(),
+            0x3F => self.aas(),
+            _ => {
+                if (0x00..=0x05).contains(&opcode){
+                    self.add(opcode);
+                }else if (0x10..=0x15).contains(&opcode){
+                    self.adc(opcode)
+                } 
+                else {
+                    panic!("Opcode no implementado: 0x{:02x}", opcode);
+                }
+            }
         }
     }
 
@@ -123,6 +139,24 @@ impl Emulator8086{
         }
 
         println!();
+    }
+
+    pub fn imprimir_estado_registros(&self){
+        println!("Estado de los registros");
+        println!("AX: 0x{:04x}", self.registers.ax);
+        println!("BX: 0x{:04x}", self.registers.bx);
+        println!("CX: 0x{:04x}", self.registers.cx);
+        println!("DX: 0x{:04x}", self.registers.dx);
+        println!("SI: 0x{:04x}", self.registers.si);
+        println!("DI: 0x{:04x}", self.registers.di);
+        println!("SP: 0x{:04x}", self.registers.sp);
+        println!("BP: 0x{:04x}", self.registers.bp);
+        println!("CS: 0x{:04x}", self.registers.cs);
+        println!("DS: 0x{:04x}", self.registers.ds);
+        println!("SS: 0x{:04x}", self.registers.ss);
+        println!("ES: 0x{:04x}", self.registers.es);
+        println!("IP: 0x{:04x}", self.registers.ip);
+        println!("Flags: 0x{:04x}", self.registers.flags);
     }
 
     //Implementación de las microinstrucciones
@@ -157,6 +191,98 @@ impl Emulator8086{
         if temp == 0{
             self.registers.flags |= FLAG_ZF;
         }
+        self.registers.ax = (ah as u16) << 8 | al as u16;
         self.pending_cycles += 60;
     }
+
+    //AAM ASCII adjust for multiplication
+    fn aam(&mut self){
+        let mut al = self.registers.get_low_byte(self.registers.ax);
+        let mut ah = self.registers.get_high_byte(self.registers.ax);
+        ah = al / 0xA;
+        al = al % 0xA;
+        self.registers.flags &= !(FLAG_PF | FLAG_SF | FLAG_ZF);
+        if al == 0 {self.registers.flags |= FLAG_ZF;}
+        if al & 0x80 != 0 {
+            self.registers.flags |= FLAG_SF;  // Establecer SF si el bit más significativo de AL es 1
+        }
+        let parity = al.count_ones();
+        if parity % 2 == 0 {
+            self.registers.flags |= FLAG_PF;
+        }
+        self.registers.ax = (ah as u16) << 8 | al as u16;
+        self.pending_cycles += 83;
+    }
+
+    //AAS ASCII adjust for subtraction
+    fn aas(&mut self){
+        let mut al = self.registers.get_low_byte(self.registers.ax);
+        let mut ah = self.registers.get_high_byte(self.registers.ax);
+        if (al & 0x0F > 9) || (self.registers.flags & FLAG_AF != 0) {
+            al = al.wrapping_sub(6);
+            ah = ah.wrapping_sub(1);
+            self.registers.flags |= FLAG_AF | FLAG_CF;
+        }else{
+            self.registers.flags &= !(FLAG_AF | FLAG_CF);
+        }
+        al &= 0x0F;
+        self.registers.ax = (ah as u16) << 8 | al as u16;
+        self.pending_cycles += 4;
+    }
+
+    //ADC Add with carry
+    fn adc(&mut self, opcode: u8){
+
+    }
+
+    //ADD Add
+    fn add(&mut self,opcode: u8){
+        match opcode{
+            0x00 =>{
+
+            },
+            0x01 =>{
+
+            },
+            0x02 =>{
+
+            },
+            0x03 =>{
+
+            },
+            0x04 =>{
+                let inmediate_value = self.fetch();
+                let (new_al, carry) = self.registers.get_low_byte(self.registers.ax).overflowing_add(inmediate_value);
+                let overflow = ((self.registers.get_low_byte(self.registers.ax) as i8).overflowing_add(inmediate_value as i8)).1;
+                self.registers.ax = (self.registers.ax & 0xFF00) | new_al as u16;
+                self.registers.flags &= !(FLAG_CF | FLAG_PF | FLAG_AF | FLAG_ZF | FLAG_SF | FLAG_OF);  // Limpiar flags relevantes
+                if carry {
+                    self.registers.flags |= FLAG_CF;
+                }
+                if new_al % 2 == 0 {
+                    self.registers.flags |= FLAG_PF;
+                }
+                if (new_al & 0x0F) + (inmediate_value & 0x0F) > 0x0F {
+                    self.registers.flags |= FLAG_AF;
+                }
+                if new_al == 0 {
+                    self.registers.flags |= FLAG_ZF;
+                } 
+                
+                if new_al & 0x80 != 0 {
+                    self.registers.flags |= FLAG_SF;
+                }
+        
+                if overflow {
+                    self.registers.flags |= FLAG_OF;
+                }
+                self.pending_cycles += 4;
+            },
+            0x05 =>{
+
+            },
+            _ => {}
+        }
+    }
+    
 }
