@@ -1,6 +1,7 @@
 mod emulator;
+use crate::emulator::emulator::Emulator8086;
 fn main() {
-    let mut emulator = emulator::Emulator8086::new();
+    let mut emulator = Emulator8086::new();
     if let Err(e) = emulator.load_com("noname.com") {
         println!("Error al cargar el programa: {:?}", e);
         return;
@@ -16,3 +17,4 @@ fn main() {
 //http://atc2.aut.uah.es/~avicente/asignaturas/ects/pdf/ects_t2.pdf
 //Manual http://bitsavers.org/components/intel/8086/9800722-03_The_8086_Family_Users_Manual_Oct79.pdf
 // 2-51 Ciclos por instruccion
+// http://www.mathemainzel.info/files/x86asmref.html#xor

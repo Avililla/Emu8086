@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::Read;
+use crate::emulator::registers::Registers;
 const MEM_SIZE: usize = 1 << 20;
 const COM_START: usize = 0x7100;
 
@@ -13,91 +14,6 @@ const FLAG_TF: u16 = 0b0000_0001_0000_0000;  // Bit 8
 const FLAG_IF: u16 = 0b0000_0010_0000_0000;  // Bit 9
 const FLAG_DF: u16 = 0b0000_0100_0000_0000;  // Bit 10
 const FLAG_OF: u16 = 0b0000_1000_0000_0000;  // Bit 11
-
-pub struct Registers {
-    // Registros generales de 16 bits
-    pub ax: u16,
-    pub bx: u16,
-    pub cx: u16,
-    pub dx: u16,
-    // Registros de índice
-    pub si: u16,
-    pub di: u16,
-    // Registros de segmento
-    pub cs: u16,
-    pub ds: u16,
-    pub ss: u16,
-    pub es: u16,
-    // Registros de puntero y otros
-    pub sp: u16,
-    pub bp: u16,
-    pub ip: u16,
-    // Registro de estado (Flags)
-    pub flags: u16,
-}
-
-impl Registers{
-    pub fn initialize()->Self{
-        Self{
-            ax: 0,
-            bx: 0,
-            cx: 0,
-            dx: 0,
-            si: 0,
-            di: 0x0000,
-            sp: 0xFFFE, // El puntero de pila por lo general empieza en el tope
-            bp: 0,
-            cs: 0x0700,
-            ds: 0x0700,
-            ss: 0x0000,
-            es: 0x0700,
-            ip: 0x0100, // El punto de entrada por defecto para programas
-            flags: 0,
-        }
-    }
-
-    pub fn get_high_byte<T: Into<u16>>(&self, register: T)->u8{
-        let value = register.into();
-        ((value & 0xFF00) >> 8) as u8 // Hay que desplazar de la parte alta a la baja para que cuando se convierta a 8 bits se quede la parte alta
-    }
-
-    pub fn get_low_byte<T: Into<u16>>(&self, register: T)->u8{
-        let value = register.into();
-        (value & 0x00FF) as u8
-    }
-
-    //Solo se usan para cuando son la base de la instrucción
-
-    //Según el indice en el modo de redireccionamiento devuelve el valor //Correcto
-    pub fn get_register_by_index(&self,index:u8)->u16{
-        match index{
-            0b000 => self.ax,
-            0b001 => self.cx,
-            0b010 => self.dx,
-            0b011 => self.bx,
-            0b100 => self.sp,
-            0b101 => self.bp,
-            0b110 => self.si,
-            0b111 => self.di,
-            _ => panic!("Indice de registro no valido: {}", index),
-        }
-    }
-
-    //Según el indice en el modo de redireccionamiento escribe el valor //Correcto
-    pub fn write_register_by_index(&mut self, index: u8, value: u16){
-        match index{
-            0b000 => self.ax = value,
-            0b001 => self.cx = value,
-            0b010 => self.dx = value,
-            0b011 => self.bx = value,
-            0b100 => self.sp = value,
-            0b101 => self.bp = value,
-            0b110 => self.si = value,
-            0b111 => self.di = value,
-            _ => panic!("Indice de registro no valido: {}", index),
-        }
-    }
-}
 
 
 pub struct Emulator8086 {
@@ -133,20 +49,6 @@ impl Emulator8086{
 
     }
 
-    pub fn get_base_address_from_code(&self,code: u8)->u16{
-        match code{
-            0b000 => self.registers.bx+self.registers.si,
-            0b001 => self.registers.bx+self.registers.di,
-            0b010 => self.registers.bp+self.registers.si,
-            0b011 => self.registers.bp+self.registers.di,
-            0b100 => self.registers.si,
-            0b101 => self.registers.di,
-            0b110 => self.registers.bp,
-            0b111 => self.registers.bx,
-            _ => panic!("Codigo de base no valido: {}", code),
-        }
-    }
-
     pub fn fetch(&mut self)->u8{
         let base_address = (self.registers.cs as usize) << 4;
         let offset = self.registers.ip as usize;
@@ -170,6 +72,14 @@ impl Emulator8086{
         let low_byte = self.memory[effective_address];
         let high_byte = self.memory[effective_address + 1];
         (high_byte as u16) << 8 | low_byte as u16
+    }
+
+    //Decode ModRM
+    fn decode_modrm(modrm: u8) -> (u8, u8, u8) {
+        let addressing_mode = (modrm & 0b11000000) >> 6; 
+        let reg = (modrm & 0b00111000) >> 3;
+        let rm = modrm & 0b00000111;
+        (addressing_mode, reg, rm)
     }
 
     pub fn decode_and_execute(&mut self, opcode: u8){
@@ -334,7 +244,7 @@ impl Emulator8086{
                 match mod_field{
                     0x00=>{
                         //Accedemos a memoria usando un registro como indice
-                        let origin_register_value = self.get_base_address_from_code(rm_field);
+                        let origin_register_value = self.registers.get_base_address_from_code(rm_field);
                         let destination_register_value = self.registers.get_register_by_index(reg_field);
                         let memory_value = self.get_w_from_memory(self.registers.ds, origin_register_value);
                         let (new_value, carry) = destination_register_value.overflowing_add(memory_value);
@@ -363,7 +273,7 @@ impl Emulator8086{
                     },
                     0x01=>{
                         //Accedemos a memoria usando un registro como indice y un desplazamiento de 8 bits
-                        let origin_register_value = self.get_base_address_from_code(rm_field);
+                        let origin_register_value = self.registers.get_base_address_from_code(rm_field);
                         let displacement = self.fetch();
                         let destination_register_value = self.registers.get_register_by_index(reg_field);
                         let memory_value = self.get_w_from_memory(self.registers.ds, origin_register_value + displacement as u16);
@@ -393,7 +303,7 @@ impl Emulator8086{
                     },
                     0x02=>{
                         //Accedemos a memoria usando un registro como indice y un desplazamiento de 16 bits
-                        let origin_register_value = self.get_base_address_from_code(rm_field);
+                        let origin_register_value = self.registers.get_base_address_from_code(rm_field);
                         let displacement_l = self.fetch();
                         let displacement_h = self.fetch();
                         let displacement = (displacement_h as u16) << 8 | displacement_l as u16;
@@ -516,5 +426,4 @@ impl Emulator8086{
             _ => {}
         }
     }
-    
 }
