@@ -28,7 +28,7 @@ pub fn add_16bit_complemento_a2(a: u16, b: u16) -> (u16, bool, bool, bool) {
 
 
 //Función que actualiza las flags de la operación de suma
-pub fn actualizar_flags(flags: &mut u16, resultado: u16, overflow: bool, carry: bool, aux: bool) {
+pub fn actualizar_flags_add(flags: &mut u16, resultado: u16, overflow: bool, carry: bool, aux: bool) {
     // Sign flag
     *flags &= !(FLAG_CF | FLAG_PF | FLAG_AF | FLAG_ZF | FLAG_SF | FLAG_OF); //Limpiamos las flags
     if (resultado & 0x8000) != 0 {

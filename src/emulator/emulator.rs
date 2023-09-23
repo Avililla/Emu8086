@@ -264,28 +264,9 @@ impl Emulator8086{
                         let origin_register_value = self.registers.get_base_address_from_code(rm_field);
                         let destination_register_value = self.registers.get_register_by_index(reg_field);
                         let memory_value = self.get_w_from_memory(self.registers.ds, origin_register_value);
-                        let (new_value, carry) = destination_register_value.overflowing_add(memory_value);
-                        let overflow = ((destination_register_value as i16).overflowing_add(memory_value as i16)).1;
+                        let(new_value,overflow,carry, aux) = add_16bit_complemento_a2(destination_register_value, memory_value);
                         self.registers.write_register_by_index(reg_field, new_value);
-                        self.registers.flags &= !(FLAG_CF | FLAG_PF | FLAG_AF | FLAG_ZF | FLAG_SF | FLAG_OF);  // Limpiar flags relevantes
-                        if carry {
-                            self.registers.flags |= FLAG_CF;
-                        }
-                        if new_value % 2 == 0 {
-                            self.registers.flags |= FLAG_PF;
-                        }
-                        if (new_value & 0x0F) + (memory_value & 0x0F) > 0x0F {
-                            self.registers.flags |= FLAG_AF;
-                        }
-                        if new_value == 0 {
-                            self.registers.flags |= FLAG_ZF;
-                        }
-                        if new_value & 0x8000 != 0 {
-                            self.registers.flags |= FLAG_SF;
-                        }
-                        if overflow {
-                            self.registers.flags |= FLAG_OF;
-                        }
+                        actualizar_flags_add(&mut self.registers.flags, new_value, overflow, carry, aux);
                         self.pending_cycles += 9;
                     },
                     0x01=>{
@@ -294,28 +275,9 @@ impl Emulator8086{
                         let displacement = self.fetch();
                         let destination_register_value = self.registers.get_register_by_index(reg_field);
                         let memory_value = self.get_w_from_memory(self.registers.ds, origin_register_value + displacement as u16);
-                        let (new_value, carry) = destination_register_value.overflowing_add(memory_value);
-                        let overflow = ((destination_register_value as i16).overflowing_add(memory_value as i16)).1;
+                        let (new_value,overflow,carry,aux) = add_16bit_complemento_a2(destination_register_value, memory_value);
                         self.registers.write_register_by_index(reg_field, new_value);
-                        self.registers.flags &= !(FLAG_CF | FLAG_PF | FLAG_AF | FLAG_ZF | FLAG_SF | FLAG_OF);  // Limpiar flags relevantes
-                        if carry {
-                            self.registers.flags |= FLAG_CF;
-                        }
-                        if new_value % 2 == 0 {
-                            self.registers.flags |= FLAG_PF;
-                        }
-                        if (new_value & 0x0F) + (memory_value & 0x0F) > 0x0F {
-                            self.registers.flags |= FLAG_AF;
-                        }
-                        if new_value == 0 {
-                            self.registers.flags |= FLAG_ZF;
-                        }
-                        if new_value & 0x8000 != 0 {
-                            self.registers.flags |= FLAG_SF;
-                        }
-                        if overflow {
-                            self.registers.flags |= FLAG_OF;
-                        }
+                        actualizar_flags_add(&mut self.registers.flags, new_value, overflow, carry, aux);
                         self.pending_cycles += 9;
                     },
                     0x02=>{
@@ -326,55 +288,17 @@ impl Emulator8086{
                         let displacement = (displacement_h as u16) << 8 | displacement_l as u16;
                         let destination_register_value = self.registers.get_register_by_index(reg_field);
                         let memory_value = self.get_w_from_memory(self.registers.ds, origin_register_value + displacement);
-                        let (new_value, carry) = destination_register_value.overflowing_add(memory_value);
-                        let overflow = ((destination_register_value as i16).overflowing_add(memory_value as i16)).1;
+                        let (new_value,overflow,carry,aux) = add_16bit_complemento_a2(destination_register_value, memory_value);
                         self.registers.write_register_by_index(reg_field, new_value);
-                        self.registers.flags &= !(FLAG_CF | FLAG_PF | FLAG_AF | FLAG_ZF | FLAG_SF | FLAG_OF);  // Limpiar flags relevantes
-                        if carry {
-                            self.registers.flags |= FLAG_CF;
-                        }
-                        if new_value % 2 == 0 {
-                            self.registers.flags |= FLAG_PF;
-                        }
-                        if (new_value & 0x0F) + (memory_value & 0x0F) > 0x0F {
-                            self.registers.flags |= FLAG_AF;
-                        }
-                        if new_value == 0 {
-                            self.registers.flags |= FLAG_ZF;
-                        }
-                        if new_value & 0x8000 != 0 {
-                            self.registers.flags |= FLAG_SF;
-                        }
-                        if overflow {
-                            self.registers.flags |= FLAG_OF;
-                        }
+                        actualizar_flags_add(&mut self.registers.flags, new_value, overflow, carry, aux);
                         self.pending_cycles += 9;
                     },
                     0x03=>{
                         let origin_register_value = self.registers.get_register_by_index(rm_field);
                         let destination_register_value = self.registers.get_register_by_index(reg_field);
-                        let (new_value, carry) = destination_register_value.overflowing_add(origin_register_value);
-                        let overflow = ((destination_register_value as i16).overflowing_add(origin_register_value as i16)).1;
+                        let (new_value,overflow,carry,aux) = add_16bit_complemento_a2(destination_register_value, origin_register_value);
                         self.registers.write_register_by_index(reg_field, new_value);
-                        self.registers.flags &= !(FLAG_CF | FLAG_PF | FLAG_AF | FLAG_ZF | FLAG_SF | FLAG_OF);  // Limpiar flags relevantes
-                        if carry {
-                            self.registers.flags |= FLAG_CF;
-                        }
-                        if new_value % 2 == 0 {
-                            self.registers.flags |= FLAG_PF;
-                        }
-                        if (new_value & 0x0F) + (origin_register_value & 0x0F) > 0x0F {
-                            self.registers.flags |= FLAG_AF;
-                        }
-                        if new_value == 0 {
-                            self.registers.flags |= FLAG_ZF;
-                        }
-                        if new_value & 0x8000 != 0 {
-                            self.registers.flags |= FLAG_SF;
-                        }
-                        if overflow {
-                            self.registers.flags |= FLAG_OF;
-                        }
+                        actualizar_flags_add(&mut self.registers.flags, new_value, overflow, carry, aux);
                         self.pending_cycles += 3;
                     },
                     _ => {}
@@ -382,30 +306,10 @@ impl Emulator8086{
             },
             0x04 =>{
                 let inmediate_value = self.fetch();
-                let (new_al, carry) = self.registers.get_low_byte(self.registers.ax).overflowing_add(inmediate_value);
-                let overflow = ((self.registers.get_low_byte(self.registers.ax) as i8).overflowing_add(inmediate_value as i8)).1;
+                let al = self.registers.get_low_byte(self.registers.ax);
+                let (new_al,overflow,carry, aux) = add_8bit_complemento_a2(al, inmediate_value);
                 self.registers.ax = (self.registers.ax & 0xFF00) | new_al as u16;
-                self.registers.flags &= !(FLAG_CF | FLAG_PF | FLAG_AF | FLAG_ZF | FLAG_SF | FLAG_OF);  // Limpiar flags relevantes
-                if carry {
-                    self.registers.flags |= FLAG_CF;
-                }
-                if new_al % 2 == 0 {
-                    self.registers.flags |= FLAG_PF;
-                }
-                if (new_al & 0x0F) + (inmediate_value & 0x0F) > 0x0F {
-                    self.registers.flags |= FLAG_AF;
-                }
-                if new_al == 0 {
-                    self.registers.flags |= FLAG_ZF;
-                } 
-                
-                if new_al & 0x80 != 0 {
-                    self.registers.flags |= FLAG_SF;
-                }
-        
-                if overflow {
-                    self.registers.flags |= FLAG_OF;
-                }
+                actualizar_flags_add(&mut self.registers.flags, new_al as u16, overflow, carry, aux);
                 self.pending_cycles += 4;
             },
             0x05 =>{
@@ -414,7 +318,7 @@ impl Emulator8086{
                 let inmediate_value = (inmediate_value_h as u16) << 8 | inmediate_value_l as u16;
                 let(new_ax,overflow,carry, aux) = add_16bit_complemento_a2(self.registers.ax, inmediate_value);
                 self.registers.ax = new_ax;
-                actualizar_flags(&mut self.registers.flags, new_ax, overflow, carry, aux);
+                actualizar_flags_add(&mut self.registers.flags, new_ax, overflow, carry, aux);
                 self.pending_cycles += 4;
             },
             _ => {}
