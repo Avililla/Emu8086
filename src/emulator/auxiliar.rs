@@ -78,3 +78,56 @@ pub fn actualizar_flags_add(flags: &mut u16, resultado: u16, overflow: bool, car
         *flags &= !FLAG_AF;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_add_8bit_complemento_a2() {
+        // Test normal sin overflow, carry o aux
+        let (result, overflow, carry, aux) = add_8bit_complemento_a2(50, 25);
+        assert_eq!(result, 75);
+        assert_eq!(overflow, false);
+        assert_eq!(carry, false);
+        assert_eq!(aux, false);
+
+        // Test con overflow y carry
+        let (result, overflow, carry, aux) = add_8bit_complemento_a2(200, 100);
+        assert_eq!(result, 44); // 300 % 256
+        assert_eq!(overflow, true);
+        assert_eq!(carry, true);
+        assert_eq!(aux, false);
+
+        // Test con aux
+        let (result, overflow, carry, aux) = add_8bit_complemento_a2(0x0F, 0x01);
+        assert_eq!(result, 0x10);
+        assert_eq!(overflow, false);
+        assert_eq!(carry, false);
+        assert_eq!(aux, true);
+    }
+
+    #[test]
+    fn test_add_16bit_complemento_a2() {
+        // Test normal sin overflow, carry o aux
+        let (result, overflow, carry, aux) = add_16bit_complemento_a2(5000, 2500);
+        assert_eq!(result, 7500);
+        assert_eq!(overflow, false);
+        assert_eq!(carry, false);
+        assert_eq!(aux, false);
+
+        // Test con overflow y carry
+        let (result, overflow, carry, aux) = add_16bit_complemento_a2(40000, 30000);
+        assert_eq!(result, 4464); // 70000 % 65536
+        assert_eq!(overflow, true);
+        assert_eq!(carry, true);
+        assert_eq!(aux, false);
+
+        // Test con aux
+        let (result, overflow, carry, aux) = add_16bit_complemento_a2(0x000F, 0x0001);
+        assert_eq!(result, 0x0010);
+        assert_eq!(overflow, false);
+        assert_eq!(carry, false);
+        assert_eq!(aux, true);
+    }
+}
