@@ -23,9 +23,9 @@ pub struct Registers {
 impl Registers{
     pub fn initialize()->Self{
         Self{
-            ax: 0,
+            ax: 0x0000,
             bx: 0,
-            cx: 0,
+            cx: 0x0000,
             dx: 0,
             si: 0,
             di: 0x0000,
@@ -36,7 +36,7 @@ impl Registers{
             ss: 0x0000,
             es: 0x0700,
             ip: 0x0100, // El punto de entrada por defecto para programas
-            flags: 0,
+            flags: 0b0000_0010_0000_0000,
         }
     }
 

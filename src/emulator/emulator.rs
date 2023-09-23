@@ -1,21 +1,10 @@
 use std::fs::File;
 use std::io::Read;
 use crate::emulator::registers::Registers;
+
+use crate::emulator::auxiliar::*;
 const MEM_SIZE: usize = 1 << 20;
 const COM_START: usize = 0x7100;
-
-//Banderas del registro de estado para poderlas usar de manera mas simple
-const FLAG_CF: u16 = 0b0000_0000_0000_0001;  // Bit 0
-const FLAG_PF: u16 = 0b0000_0000_0000_0100;  // Bit 2
-const FLAG_AF: u16 = 0b0000_0000_0001_0000;  // Bit 4
-const FLAG_ZF: u16 = 0b0000_0000_0100_0000;  // Bit 6
-const FLAG_SF: u16 = 0b0000_0000_1000_0000;  // Bit 7
-const FLAG_TF: u16 = 0b0000_0001_0000_0000;  // Bit 8
-const FLAG_IF: u16 = 0b0000_0010_0000_0000;  // Bit 9
-const FLAG_DF: u16 = 0b0000_0100_0000_0000;  // Bit 10
-const FLAG_OF: u16 = 0b0000_1000_0000_0000;  // Bit 11
-
-
 pub struct Emulator8086 {
     // Registros
     pub registers: Registers,
@@ -75,6 +64,7 @@ impl Emulator8086{
     }
 
     //Decode ModRM
+    //addressing_mode,registro destino,origen
     fn decode_modrm(modrm: u8) -> (u8, u8, u8) {
         let addressing_mode = (modrm & 0b11000000) >> 6; 
         let reg = (modrm & 0b00111000) >> 3;
@@ -220,6 +210,7 @@ impl Emulator8086{
 
     }
 
+    //Reformar el carry y el overflow hay que controlar si son dos numeros negativos
     //ADD Add
     fn add(&mut self,opcode: u8){
         match opcode{
@@ -230,7 +221,35 @@ impl Emulator8086{
 
             },
             0x02 =>{
-
+                //Igual que el 3 pero con byte en vez de word
+                let mod_rm = self.fetch(); //Leer el byte que nos dice el modo de direccionamiento
+                let (mod_field, reg_field, rm_field) = Self::decode_modrm(mod_rm);
+                println!("Mod: 0x{:02x}, Reg: 0x{:02x}, R/M: 0x{:02x}", mod_field, reg_field, rm_field);
+                match mod_field{
+                    0x00=>{
+                        let aux = self.fetch();
+                    },
+                    0x01=>{
+                        let aux = self.fetch();
+                    },
+                    0x02=>{
+                        let aux = self.fetch();
+                    },
+                    0x03 => {
+                        //ADD AL,CL registro a registro
+                        let origin_register_value = self.registers.get_low_byte(self.registers.get_register_by_index(rm_field));
+                        let destination_register_value = self.registers.get_low_byte(self.registers.get_register_by_index(reg_field));
+                        let (new_value, overflow) = destination_register_value.overflowing_add(origin_register_value);
+                        //Poner el la parte baja de AX el resultado
+                        self.registers.ax = (self.registers.ax & 0xFF00) | new_value as u16;
+                        self.registers.write_register_by_index(reg_field, (self.registers.get_register_by_index(rm_field)& 0xFF00)| new_value as u16);
+                        if overflow {
+                            self.registers.flags |= FLAG_OF;
+                        }
+                    },
+                    _ => {}
+                }
+                
             },
             0x03 =>{
                 // 7   6   5   4   3   2   1   0
@@ -238,9 +257,7 @@ impl Emulator8086{
                 // | Mod   |   Reg/Opcode  |  R/M   |
                 // +---+---+---+---+---+---+---+---+
                 let mod_rm = self.fetch(); //Leer el byte que nos dice el modo de direccionamiento
-                let mod_field = (mod_rm & 0xC0) >> 6;//Determinan si el operando es un registro o un valor en memoria
-                let reg_field = (mod_rm & 0x38) >> 3;//Determinan el registro de destino
-                let rm_field = mod_rm & 0x07;//Determinan el registro de origen
+                let (mod_field, reg_field, rm_field) = Self::decode_modrm(mod_rm);
                 match mod_field{
                     0x00=>{
                         //Accedemos a memoria usando un registro como indice
@@ -395,32 +412,9 @@ impl Emulator8086{
                 let inmediate_value_l = self.fetch();
                 let inmediate_value_h = self.fetch();
                 let inmediate_value = (inmediate_value_h as u16) << 8 | inmediate_value_l as u16;
-                let (new_ax, carry) = self.registers.ax.overflowing_add(inmediate_value);
-                let overflow = ((self.registers.ax as i16).overflowing_add(inmediate_value as i16)).1;
+                let(new_ax,overflow,carry, aux) = add_16bit_complemento_a2(self.registers.ax, inmediate_value);
                 self.registers.ax = new_ax;
-                self.registers.flags &= !(FLAG_CF | FLAG_PF | FLAG_AF | FLAG_ZF | FLAG_SF | FLAG_OF);  // Limpiar flags relevantes
-                if carry {
-                    self.registers.flags |= FLAG_CF;
-                }
-                if (new_ax & 0xFF).count_ones() % 2 == 0 {
-                    self.registers.flags |= FLAG_PF;
-                }
-                
-                if (new_ax & 0x0F) + (inmediate_value & 0x0F) > 0x0F {
-                    self.registers.flags |= FLAG_AF;
-                }
-        
-                if new_ax == 0 {
-                    self.registers.flags |= FLAG_ZF;
-                }
-        
-                if new_ax & 0x8000 != 0 {
-                    self.registers.flags |= FLAG_SF;
-                }
-        
-                if overflow {
-                    self.registers.flags |= FLAG_OF;
-                }
+                actualizar_flags(&mut self.registers.flags, new_ax, overflow, carry, aux);
                 self.pending_cycles += 4;
             },
             _ => {}
