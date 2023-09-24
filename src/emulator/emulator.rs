@@ -325,3 +325,30 @@ impl Emulator8086{
         }
     }
 }
+
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+
+    #[test]
+    fn start_emulator(){
+        let emulator = Emulator8086::new();
+        assert_eq!(emulator.registers.ax, 0);
+        assert_eq!(emulator.registers.bx, 0);
+        assert!(emulator.memory.iter().all(|&byte| byte == 0));
+        assert_eq!(emulator.pending_cycles, 0);
+    }
+
+    #[test]
+    fn load_com(){
+        let mut emulator = Emulator8086::new();
+        if let Err(e) = emulator.load_com("load_com_test.com") {
+            panic!("Error al cargar el programa: {:?}", e);
+        }
+        assert_eq!(emulator.memory[COM_START], 0x05);
+        assert_eq!(emulator.memory[COM_START + 1], 0x0F);
+        assert_eq!(emulator.memory[COM_START + 2], 0x00);
+        assert_eq!(emulator.memory[COM_START + 3], 0xC3);
+    }
+}
