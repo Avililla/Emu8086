@@ -345,6 +345,7 @@ impl Emulator8086{
                 let al = self.registers.get_low_byte(self.registers.ax);
                 let new_al = al & inmediate_value;
                 self.registers.ax = (self.registers.ax & 0xFF00) | new_al as u16;
+                actualizar_flags_and(&mut self.registers.flags, new_al as u16);
                 self.pending_cycles += 3;
             },
             0x25=>{

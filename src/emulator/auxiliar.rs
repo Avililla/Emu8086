@@ -79,6 +79,45 @@ pub fn actualizar_flags_add(flags: &mut u16, resultado: u16, overflow: bool, car
     }
 }
 
+///AND
+pub fn actualizar_flags_and(flags: &mut u16, resultado: u16) {
+    // Limpiamos las flags relevantes
+    *flags &= !(FLAG_CF | FLAG_PF | FLAG_ZF | FLAG_SF | FLAG_OF);
+
+    // CF y OF siempre son 0 después de una operación AND
+    *flags &= !FLAG_CF;
+    *flags &= !FLAG_OF;
+
+    // SF: establecida si el bit más significativo es 1
+    if (resultado & 0x8000) != 0 {
+        *flags |= FLAG_SF;
+    } else {
+        *flags &= !FLAG_SF;
+    }
+
+    // ZF: establecida si el resultado es 0
+    if resultado == 0 {
+        *flags |= FLAG_ZF;
+    } else {
+        *flags &= !FLAG_ZF;
+    }
+
+    // PF: establecida si el número de bits establecidos en el byte menos significativo es par
+    let mut count = 0;
+    for i in 0..8 {
+        if (resultado & (1 << i)) != 0 {
+            count += 1;
+        }
+    }
+    if count % 2 == 0 {
+        *flags |= FLAG_PF;
+    } else {
+        *flags &= !FLAG_PF;
+    }
+
+    // AF no se define para la operación AND, por lo que no la modificamos
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
