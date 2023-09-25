@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::Read;
 use crate::emulator::registers::Registers;
+use crate::emulator::opcodes::*;
 
 use crate::emulator::auxiliar::*;
 const MEM_SIZE: usize = 1 << 20;
@@ -83,9 +84,12 @@ impl Emulator8086{
                     self.add(opcode);
                 }else if (0x10..=0x15).contains(&opcode){
                     self.adc(opcode)
-                }else if (0x20..=0x25).contains(&opcode){
+                }else if OPCODES_AND.contains(&opcode){
                     self.and(opcode)
-                }else {
+                }else if OPCODES_MOV.contains(&opcode){
+                    self.mov(opcode);
+                }
+                else {
                     panic!("Opcode no implementado: 0x{:02x}", opcode);
                 }
             }
@@ -346,11 +350,27 @@ impl Emulator8086{
                 let new_al = al & inmediate_value;
                 self.registers.ax = (self.registers.ax & 0xFF00) | new_al as u16;
                 actualizar_flags_and(&mut self.registers.flags, new_al as u16);
-                self.pending_cycles += 3;
+                self.pending_cycles += 4;
             },
             0x25=>{
-
+                let inmediate_value_l = self.fetch();
+                let inmediate_value_h = self.fetch();
+                let inmediate_value = (inmediate_value_h as u16) << 8 | inmediate_value_l as u16;
+                let new_ax = self.registers.ax & inmediate_value;
+                self.registers.ax = new_ax;
+                actualizar_flags_and(&mut self.registers.flags, new_ax);
+                self.pending_cycles += 4;
             },
+            _=>{}
+        }
+    }
+
+    fn mov(&mut self,opcode:u8){
+        match opcode{
+            0x88=>{
+                let mod_rm = self.fetch();
+                println!("ModRM: 0x{:02x}", mod_rm);
+            }
             _=>{}
         }
     }
