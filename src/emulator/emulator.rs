@@ -370,7 +370,42 @@ impl Emulator8086{
             0x88=>{
                 let mod_rm = self.fetch();
                 println!("ModRM: 0x{:02x}", mod_rm);
-            }
+                // 7   6   5   4   3   2   1   0
+                // +---+---+---+---+---+---+---+---+
+                // | Mod   |   Reg/Opcode  |  R/M   |
+                // +---+---+---+---+---+---+---+---+
+                let (mod_field, reg_field, rm_field) = Self::decode_modrm(mod_rm);
+                println!("Mod: 0x{:02x}, Reg: 0x{:02x}, R/M: 0x{:02x}", mod_field, reg_field, rm_field);
+                let src = self.registers.get_register_by_index_byte(reg_field);
+                let dst = self.registers.get_base_address_from_code(rm_field);
+                match mod_field{
+                    0x00 => {
+                        println!("0x00 ejecutando");
+                        self.memory[dst as usize] = src as u8;
+                        self.pending_cycles += 3;
+                    },
+                    0x01 => {
+                        let aux = self.fetch();
+                        println!("Desplazamiento: 0x{:02x}", aux);
+                        let dst = dst + aux as u16;
+                        println!("Dirección efectiva: 0x{:04x}", dst);
+                        self.memory[dst as usize] = src as u8;
+                        self.pending_cycles += 3;
+                    },
+                    0x02 => {
+                        let aux_l = self.fetch();
+                        let aux_h = self.fetch();
+                        let aux = (aux_h as u16) << 8 | aux_l as u16;
+                        let dst = dst + aux;
+                        self.memory[dst as usize] = src as u8;
+                        self.pending_cycles += 3;
+                    },
+                    0x03 => {
+                        println!("Ejecutando 0x03");
+                    },
+                    _ => {}
+                }
+            },
             _=>{}
         }
     }

@@ -9,7 +9,7 @@ fn main() {
     let mut instruction = emulator.fetch(); //Primera instruccion
     while instruction != 0xc3 {
         emulator.decode_and_execute(instruction);
-        emulator.imprimir_estado_registros();
+        //emulator.imprimir_estado_registros();
         instruction = emulator.fetch();
     }
 }
