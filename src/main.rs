@@ -1,8 +1,18 @@
 mod emulator;
 use crate::emulator::emulator::Emulator8086;
+use std::env;
 fn main() {
+    let args: Vec<String> = env::args().collect();
+    let file_path:String;
+    if args.len() < 2 {
+        println!("Por favor, proporciona la dirección del archivo como argumento.");
+        file_path = "noname.com".to_string();
+    }else{
+        file_path = args[1].to_string();
+    }
+    println!("Cargando el programa: {}", file_path);
     let mut emulator = Emulator8086::new();
-    if let Err(e) = emulator.load_com("noname.com") {
+    if let Err(e) = emulator.load_com(&file_path) {
         println!("Error al cargar el programa: {:?}", e);
         return;
     }
