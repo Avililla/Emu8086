@@ -598,7 +598,7 @@ mod tests{
     }
 
     #[test]
-    fn test_mov(){
+    fn test_mov_inm_low(){
         let mut emulator = Emulator8086::new();
         if let Err(e) = emulator.load_com("./tests/mov/MOV_LOW_REG.com") {
             panic!("Error al cargar el programa: {:?}", e);
@@ -614,5 +614,24 @@ mod tests{
         assert_eq!(emulator.registers.bx, 0x0011);
         assert_eq!(emulator.registers.cx, 0x0011);
         assert_eq!(emulator.registers.dx, 0x0011);
+    }
+
+    #[test]
+    fn test_mov_inm_high(){
+        let mut emulator = Emulator8086::new();
+        if let Err(e) = emulator.load_com("./tests/mov/MOV_HIGH_REG.com") {
+            panic!("Error al cargar el programa: {:?}", e);
+        }
+        let mut instruction = emulator.fetch(); //Primera instruccion
+        while instruction != 0xc3 {
+            emulator.decode_and_execute(instruction);
+            emulator.imprimir_estado_registros();
+            instruction = emulator.fetch();
+        }
+        //Test mov de inmediatos a registros altos
+        assert_eq!(emulator.registers.ax, 0x1100);
+        assert_eq!(emulator.registers.bx, 0x1100);
+        assert_eq!(emulator.registers.cx, 0x1100);
+        assert_eq!(emulator.registers.dx, 0x1100);
     }
 }
