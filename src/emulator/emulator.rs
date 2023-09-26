@@ -588,7 +588,7 @@ mod tests{
     #[test]
     fn load_com(){
         let mut emulator = Emulator8086::new();
-        if let Err(e) = emulator.load_com("load_com_test.com") {
+        if let Err(e) = emulator.load_com("./tests/load_com_test.com") {
             panic!("Error al cargar el programa: {:?}", e);
         }
         assert_eq!(emulator.memory[COM_START], 0x05);
