@@ -1,36 +1,19 @@
-EMU8086 GENERATED LISTING. MACHINE CODE <- SOURCE.
- 
-noname.com -- emu8086 assembler version: 4.08  
- 
-[ 26/09/2023  --  2:32:27 ] 
- 
-===================================================================================================
-[LINE]     LOC: MACHINE CODE                          SOURCE
-===================================================================================================
- 
-[   1]        :                                       
-[   2]        :                                       ; You may customize this and other start-up templates;
-[   3]        :                                       ; The location of this template is c:\emu8086\inc\0_com_template.txt
-[   4]        :                                       
-[   5]        :                                       org 100h
-[   6]        :                                       
-[   7]    0100: B0 11                                 MOV al,0x11
-[   8]    0102: 8A D8                                 MOV bl,al
-[   9]    0104: 8A F0                                 MOV dh,al
-[  10]    0106: 02 D0                                 ADD dl,al
-[  11]        :                                       
-[  12]    0108: C3                                    ret
-[  13]        :                                       
-[  14]        :                                       
-[  15]        :                                       
-[  16]        :                                       
-[  17]        :                                       
-[  18]        :                                       
- 
-===================================================================================================
- 
-
-
-
-
-===================================================================================================
+                                                
+                                                ; You may customize this and other start-up templates; 
+                                                ; The location of this template is c:\emu8086\inc\0_com_template.txt
+                                                
+                                                org 100h
+                                                
+00000000: B4 11                                 MOV ah,0x11
+00000002: B7 11                                 MOV bh,0x11
+00000004: B5 11                                 MOV ch,0x11
+00000006: B6 11                                 MOV dh,0x11
+                                                
+00000008: C3                                    ret
+                                                
+                                                
+                                                
+                                                
+                                                
+                                                
+                                                
