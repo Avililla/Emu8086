@@ -216,7 +216,7 @@ impl Emulator8086{
     }
 
     //Reformar el carry y el overflow hay que controlar si son dos numeros negativos
-    //ADD Add
+    //ADD Add Mirar como funciona ADD mal funcionamiento
     fn add(&mut self,opcode: u8){
         match opcode{
             0x00 =>{
@@ -365,6 +365,35 @@ impl Emulator8086{
         }
     }
 
+    //TODO: Implementar las instrucciones de mov
+    // MOV     rb,rmb      8A mr d0 d1    B   2~4    -------- //implementada
+    // MOV     rmb,rb      88 mr d0 d1    B   2~4    -------- //implementada
+    // MOV     rmw,rw      89 mr d0 d1    W   2~4    --------
+    // MOV     rw,rmw      8B mr d0 d1    W   2~4    --------
+    // MOV     rmw,sr      8C mr d0 d1        2~4    --------
+    // MOV     sr,rmw      8E mr d0 d1        2~4    --------
+    // MOV     AL,rmb      A0 d0 d1      B   3    --------
+    // MOV     AX,rmw      A1 d0 d1      W   3    --------
+    // MOV     rmb,AL      A2 d0 d1      B   3    --------
+    // MOV     rmw,AX      A3 d0 d1      W   3    --------
+    // MOV     AL,ib       B0 i0         B   2    --------
+    // MOV     CL,ib       B1 i0         B   2    --------
+    // MOV     DL,ib       B2 i0         B   2    --------
+    // MOV     BL,ib       B3 i0         B   2    --------
+    // MOV     AH,ib       B4 i0         B   2    --------
+    // MOV     CH,ib       B5 i0         B   2    --------
+    // MOV     DH,ib       B6 i0         B   2    --------
+    // MOV     BH,ib       B7 i0         B   2    --------
+    // MOV     AX,iw       B8 i0 i1      W   3    --------
+    // MOV     CX,iw       B9 i0 i1      W   3    --------
+    // MOV     DX,iw       BA i0 i1      W   3    --------
+    // MOV     BX,iw       BB i0 i1      W   3    --------
+    // MOV     SP,iw       BC i0 i1      W   3    --------
+    // MOV     BP,iw       BD i0 i1      W   3    --------
+    // MOV     SI,iw       BE i0 i1      W   3    --------
+    // MOV     DI,iw       BF i0 i1      W   3    --------
+    // MOV     rmb,ib      C6 mr d0 d1 i0 B   3~5    --------
+    // MOV     rmw,iw      C7 mr d0 d1 i0 i1   W   4~6    --------
     fn mov(&mut self,opcode:u8){
         match opcode{
             0x88=>{
@@ -406,6 +435,137 @@ impl Emulator8086{
                     _ => {}
                 }
             },
+            0x8A => {
+                let mod_rm = self.fetch();
+                let (mod_field, reg_field, rm_field) = Self::decode_modrm(mod_rm);
+                match mod_field{
+                    0x00 => {
+                        println!("0x00 ejecutando");
+                        let src = self.registers.get_base_address_from_code(rm_field);
+                        self.registers.write_register_by_index_byte(reg_field, self.memory[src as usize]);
+                        self.pending_cycles += 3;
+                    },
+                    0x01 => {
+                        println!("0x01 ejecutando");
+                        let src = self.registers.get_base_address_from_code(rm_field);
+                        let aux = self.fetch();
+                        let src = src + aux as u16;
+                        self.registers.write_register_by_index_byte(reg_field, self.memory[src as usize]);
+                        self.pending_cycles += 3;
+                    },
+                    0x02 => {
+                        println!("0x02 ejecutando");
+                        let src = self.registers.get_base_address_from_code(rm_field);
+                        let aux_l = self.fetch();
+                        let aux_h = self.fetch();
+                        let aux = (aux_h as u16) << 8 | aux_l as u16;
+                        let src = src + aux;
+                        self.registers.write_register_by_index_byte(reg_field, self.memory[src as usize]);
+                        self.pending_cycles += 3;
+                    },
+                    0x03 => {
+                        println!("0x03 ejecutando");
+                        self.registers.write_register_by_index_byte(reg_field, self.registers.get_register_by_index_byte(rm_field));
+                    },
+                    _=>{}
+                }
+            },
+            0xB0 => {
+                let inmediate_value = self.fetch();
+                self.registers.ax = self.registers.write_low_byte(self.registers.ax,inmediate_value);
+                self.pending_cycles += 2;
+            },
+            0xB1 => {
+                let inmediate_value = self.fetch();
+                self.registers.cx = self.registers.write_low_byte(self.registers.cx,inmediate_value);
+                self.pending_cycles += 2;
+            },
+            0xB2 => {
+                let inmediate_value = self.fetch();
+                self.registers.dx = self.registers.write_low_byte(self.registers.dx,inmediate_value);
+                self.pending_cycles += 2;
+            },
+            0xB3 => {
+                let inmediate_value = self.fetch();
+                self.registers.bx = self.registers.write_low_byte(self.registers.bx,inmediate_value);
+                self.pending_cycles += 2;
+            },
+            0xB4 => {
+                let inmediate_value = self.fetch();
+                self.registers.ax = self.registers.write_high_byte(self.registers.ax,inmediate_value);
+                self.pending_cycles += 2;
+            },
+            0xB5 => {
+                let inmediate_value = self.fetch();
+                self.registers.cx = self.registers.write_high_byte(self.registers.cx,inmediate_value);
+                self.pending_cycles += 2;
+            },
+            0xB6 => {
+                let inmediate_value = self.fetch();
+                self.registers.dx = self.registers.write_high_byte(self.registers.dx,inmediate_value);
+                self.pending_cycles += 2;
+            },
+            0xB7 => {
+                let inmediate_value = self.fetch();
+                self.registers.bx = self.registers.write_high_byte(self.registers.bx,inmediate_value);
+                self.pending_cycles += 2;
+            },
+            0xB8 => {
+                let inmediate_value_l = self.fetch();
+                let inmediate_value_h = self.fetch();
+                let inmediate_value = (inmediate_value_h as u16) << 8 | inmediate_value_l as u16;
+                self.registers.ax = inmediate_value;
+                self.pending_cycles += 3;
+            },
+            0xB9 => {
+                let inmediate_value_l = self.fetch();
+                let inmediate_value_h = self.fetch();
+                let inmediate_value = (inmediate_value_h as u16) << 8 | inmediate_value_l as u16;
+                self.registers.cx = inmediate_value;
+                self.pending_cycles += 3;
+            },
+            0xBA => {
+                let inmediate_value_l = self.fetch();
+                let inmediate_value_h = self.fetch();
+                let inmediate_value = (inmediate_value_h as u16) << 8 | inmediate_value_l as u16;
+                self.registers.dx = inmediate_value;
+                self.pending_cycles += 3;
+            },
+            0xBB => {
+                let inmediate_value_l = self.fetch();
+                let inmediate_value_h = self.fetch();
+                let inmediate_value = (inmediate_value_h as u16) << 8 | inmediate_value_l as u16;
+                self.registers.bx = inmediate_value;
+                self.pending_cycles += 3;
+            },
+            0xBC => {
+                let inmediate_value_l = self.fetch();
+                let inmediate_value_h = self.fetch();
+                let inmediate_value = (inmediate_value_h as u16) << 8 | inmediate_value_l as u16;
+                self.registers.sp = inmediate_value;
+                self.pending_cycles += 3;
+            },
+            0xBD => {
+                let inmediate_value_l = self.fetch();
+                let inmediate_value_h = self.fetch();
+                let inmediate_value = (inmediate_value_h as u16) << 8 | inmediate_value_l as u16;
+                self.registers.bp = inmediate_value;
+                self.pending_cycles += 3;
+            },
+            0xBE => {
+                let inmediate_value_l = self.fetch();
+                let inmediate_value_h = self.fetch();
+                let inmediate_value = (inmediate_value_h as u16) << 8 | inmediate_value_l as u16;
+                self.registers.si = inmediate_value;
+                self.pending_cycles += 3;
+            },
+            0xBF => {
+                let inmediate_value_l = self.fetch();
+                let inmediate_value_h = self.fetch();
+                let inmediate_value = (inmediate_value_h as u16) << 8 | inmediate_value_l as u16;
+                self.registers.di = inmediate_value;
+                self.pending_cycles += 3;
+            },
             _=>{}
         }
     }
@@ -435,5 +595,24 @@ mod tests{
         assert_eq!(emulator.memory[COM_START + 1], 0x0F);
         assert_eq!(emulator.memory[COM_START + 2], 0x00);
         assert_eq!(emulator.memory[COM_START + 3], 0xC3);
+    }
+
+    #[test]
+    fn test_mov(){
+        let mut emulator = Emulator8086::new();
+        if let Err(e) = emulator.load_com("./tests/mov/MOV_LOW_REG.com") {
+            panic!("Error al cargar el programa: {:?}", e);
+        }
+        let mut instruction = emulator.fetch(); //Primera instruccion
+        while instruction != 0xc3 {
+            emulator.decode_and_execute(instruction);
+            emulator.imprimir_estado_registros();
+            instruction = emulator.fetch();
+        }
+        //Test mov de inmediatos a registros bajos
+        assert_eq!(emulator.registers.ax, 0x0011);
+        assert_eq!(emulator.registers.bx, 0x0011);
+        assert_eq!(emulator.registers.cx, 0x0011);
+        assert_eq!(emulator.registers.dx, 0x0011);
     }
 }

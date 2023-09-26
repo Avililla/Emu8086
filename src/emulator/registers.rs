@@ -50,6 +50,23 @@ impl Registers{
         (value & 0x00FF) as u8
     }
 
+    pub fn write_high_byte<T>(&self,register: T, value: u8) -> u16
+    where
+        T: Into<u16> {
+        let current_value: u16 = register.into(); // Convirtiendo a u16
+        let cleared_high_byte = current_value & 0x00FF; // Borrar el byte alto
+        cleared_high_byte | ((value as u16) << 8) // Devuelve el valor con el nuevo byte alto
+    }
+
+    pub fn write_low_byte<T>(&self,register: T, value: u8) -> u16
+    where
+        T: Into<u16> {
+        let current_value: u16 = register.into(); // Convirtiendo a u16
+        let cleared_low_byte = current_value & 0xFF00; // Borrar el byte bajo
+        cleared_low_byte | (value as u16) // Devuelve el valor con el nuevo byte bajo
+    }
+    
+
     //Solo se usan para cuando son la base de la instrucción
 
     //Según el indice en el modo de redireccionamiento devuelve el valor //Correcto
@@ -182,6 +199,44 @@ impl Registers{
                 self.di = value
             },
             _ => panic!("Índice de registro no válido: {}", index),
+        }
+    }
+
+    pub fn write_register_by_index_byte(&mut self, index: u8, value: u8){
+        match index{
+            0b000 => {
+                println!("Escribiendo en la parte baja del registro AX el valor: {}", value);
+                self.ax = (self.ax & 0xFF00) | value as u16
+            },
+            0b001 => {
+                println!("Escribiendo en la parte baja del registro CX el valor: {}", value);
+                self.cx = (self.cx & 0xFF00) | value as u16
+            },
+            0b010 => {
+                println!("Escribiendo en la parte baja del registro DX el valor: {}", value);
+                self.dx = (self.dx & 0xFF00) | value as u16
+            },
+            0b011 => {
+                println!("Escribiendo en la parte baja del registro BX el valor: {}", value);
+                self.bx = (self.bx & 0xFF00) | value as u16
+            },
+            0b100 => {
+                println!("Escribiendo en la parte alta del registro AX el valor: {}", value);
+                self.ax = (self.ax & 0x00FF) | (value as u16) << 8
+            },
+            0b101 => {
+                println!("Escribiendo en la parte alta del registro CX el valor: {}", value);
+                self.cx = (self.cx & 0x00FF) | (value as u16) << 8
+            },
+            0b110 => {
+                println!("Escribiendo en la parte alta del registro DX el valor: {}", value);
+                self.dx = (self.dx & 0x00FF) | (value as u16) << 8
+            },
+            0b111 => {
+                println!("Escribiendo en la parte alta del registro BX el valor: {}", value);
+                self.bx = (self.bx & 0x00FF) | (value as u16) << 8
+            },
+            _ => panic!("Indice de registro no valido: {}", index),
         }
     }
 
