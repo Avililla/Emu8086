@@ -68,5 +68,6 @@ fn obtener_estado_registros(emulator: &Emulator8086) -> String {
         if (emulator.registers.flags & FLAG_AF) != 0 { "1" } else { "0" },
         if (emulator.registers.flags & FLAG_PF) != 0 { "1" } else { "0" },
     ));
+    estado.push_str("+-----+-----+-----+-----+-----+-----+-----+-----+\n");
     estado
 }
