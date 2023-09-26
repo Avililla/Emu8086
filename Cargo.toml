@@ -3,6 +3,14 @@ name = "emu8086"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "emu8086"
+path = "src/lib.rs"
+crate-type = ["rlib","cdylib"]
+
+[[bin]]
+name = "emu8086"
+path = "src/main.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
