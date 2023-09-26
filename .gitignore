@@ -1,3 +1,4 @@
 /target
 /8086-emulator/node_modules
 /rustfromnode/node_modules
+/8086-emulator/emulator

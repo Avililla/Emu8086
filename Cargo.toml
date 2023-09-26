@@ -8,6 +8,7 @@ name = "emu8086"
 path = "src/lib.rs"
 crate-type = ["rlib","cdylib"]
 
+
 [[bin]]
 name = "emu8086"
 path = "src/main.rs"
