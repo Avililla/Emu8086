@@ -2,7 +2,7 @@ name: Rust
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main","rust-emulator" ]
   pull_request:
     branches: [ "main" ]
 
